@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision Companion</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <h1>Vision Companion</h1>
+      <p>Audio-first blind navigation assistant</p>
+    </header>
+
+    <section class="radar-section">
+      <button id="assistToggle" class="radar" aria-label="Toggle detection">
+        <span class="radar-icon" id="radarIcon">◉</span>
+        <span class="radar-status" id="radarStatus">STOPPED</span>
+      </button>
+      <video id="camera" autoplay playsinline class="hidden"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+    </section>
+
+    <section class="capsules">
+      <article class="capsule">
+        <p class="capsule-label">GPS</p>
+        <p id="gpsState">{{ 'Locked' if approvals.GPS_APPROVED else 'Unavailable' }}</p>
+      </article>
+      <article class="capsule">
+        <p class="capsule-label">Vision</p>
+        <p id="visionState">Off</p>
+      </article>
+    </section>
+
+    <section class="actions-row">
+      <button id="emergencyBtn" class="danger">Emergency mode</button>
+      <a class="nav-link" href="{{ url_for('navigation') }}">Navigation</a>
+    </section>
+
+    <details class="debug-panel">
+      <summary>Detection debug output</summary>
+      <pre id="detectionOutput"></pre>
+      <pre id="emergencyOutput"></pre>
+    </details>
+  </main>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
