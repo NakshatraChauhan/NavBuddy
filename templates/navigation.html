@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlindNav Navigation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <h1>Navigation Assistant</h1>
+    <p>Fetch turn-by-turn route using local OSM graph.</p>
+
+    <section class="card">
+      <label>Start Lat <input id="startLat" value="37.7749"/></label>
+      <label>Start Lon <input id="startLon" value="-122.4194"/></label>
+      <label>End Lat <input id="endLat" value="37.7755"/></label>
+      <label>End Lon <input id="endLon" value="-122.4180"/></label>
+      <button id="routeBtn">Get Route</button>
+      <pre id="routeOutput"></pre>
+    </section>
+
+    <a href="{{ url_for('index') }}">Back</a>
+  </main>
+  <script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
+</body>
+</html>
