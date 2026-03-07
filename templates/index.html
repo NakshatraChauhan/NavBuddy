@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blind Navigation Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .ok { color: #0a7a2f; }
+    .err { color: #a40000; }
+    button { padding: 0.6rem 0.8rem; margin: 0.3rem 0.2rem; }
+    #output { margin-top: 1rem; min-height: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Blind Navigation Assistant</h1>
+
+  <div class="card">
+    {% if ready %}
+      <p class="ok"><strong>System Ready</strong></p>
+      <p>Navigation active: <strong>{{ navigation_active }}</strong></p>
+    {% else %}
+      <p class="err"><strong>System Not Ready</strong></p>
+      <p>Error: {{ error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Voice Commands</h2>
+    <ul>
+      {% for c in commands %}
+        <li>{{ c }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Manual Command Trigger (for testing)</h2>
+    <div>
+      <button onclick="sendCmd('start navigation')">Start Navigation</button>
+      <button onclick="sendCmd('stop navigation')">Stop Navigation</button>
+      <button onclick="sendCmd('describe scene')">Describe Scene</button>
+      <button onclick="sendCmd('stop scan')">Stop Scan</button>
+      <button onclick="sendCmd('status')">Status</button>
+      <button onclick="sendCmd('help')">Help</button>
+    </div>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    async function sendCmd(command) {
+      const output = document.getElementById('output');
+      output.textContent = 'Running command: ' + command;
+      const res = await fetch('/api/command', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({command})
+      });
+      const data = await res.json();
+      output.textContent = data.message || JSON.stringify(data);
+    }
+  </script>
+</body>
+</html>
