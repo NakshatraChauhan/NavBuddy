@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
+
 from flask import Flask, jsonify, render_template, request
 
 from ai.detector import ObstacleDetector
 from ai.scene_analyzer import SceneAnalyzer
 from navigation.navigator import Navigator
+from permissions.permission_manager import PermissionManager
 from utils.logger import configure_logger
 from voice.speech_engine import SpeechEngine
 from voice.voice_controller import VoiceController
@@ -21,26 +24,57 @@ class SystemContainer:
         self.speech_engine = None
         self.navigator = None
         self.voice_controller = None
+        self.permission_manager = None
         self.ready = False
         self.init_error = ""
 
     def initialize(self) -> None:
+        self.permission_manager = PermissionManager(logger=self.logger)
+
         try:
-            self.detector = ObstacleDetector("models/yolov8n.pt", logger=self.logger)
+            model_path = os.getenv("BLINDNAV_MODEL_PATH", "models/yolov8n.pt")
+            target_fps = float(os.getenv("BLINDNAV_TARGET_FPS", "4"))
+
+            # 1) Load YOLO model
+            self.detector = ObstacleDetector(model_path, logger=self.logger)
             self.scene_analyzer = SceneAnalyzer(logger=self.logger)
+
+            # 2) Initialize speech engine
             self.speech_engine = SpeechEngine(logger=self.logger)
+
+            # 3) Ask for hardware permissions
+            permissions = self.permission_manager.request_all()
+            self.speech_engine.set_enabled(permissions.speaker)
+            if not permissions.speaker:
+                self.logger.warning("Speaker permission denied; audio feedback muted")
+
+            if not permissions.camera:
+                self.speech_engine.speak("Camera permission denied")
+            if not permissions.microphone:
+                self.speech_engine.speak("Microphone permission denied")
+            if not permissions.gps:
+                self.logger.info("GPS permission denied. Outdoor context disabled.")
+
             self.navigator = Navigator(
                 detector=self.detector,
                 scene_analyzer=self.scene_analyzer,
                 speech_engine=self.speech_engine,
                 logger=self.logger,
+                permissions=permissions,
+                target_fps=target_fps,
             )
+
             self.voice_controller = VoiceController(
                 navigator=self.navigator,
                 speech_engine=self.speech_engine,
                 logger=self.logger,
+                permissions=permissions,
             )
+
+            # 4) Start voice command listener
             self.voice_controller.start()
+
+            # 5) Wait for commands
             self.ready = True
             self.logger.info("System initialized")
             self.speech_engine.speak("Blind Navigation Assistant is ready.")
@@ -63,6 +97,8 @@ def index():
         error=system.init_error,
         commands=state.get("commands", []),
         navigation_active=state.get("navigation_active", False),
+        permissions=state.get("permissions", {}),
+        inference_ms=state.get("inference_ms", 0),
     )
 
 
@@ -88,4 +124,4 @@ def api_command():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host=os.getenv("BLINDNAV_HOST", "0.0.0.0"), port=int(os.getenv("BLINDNAV_PORT", "5000")), debug=False)

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import threading
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import speech_recognition as sr
 
 
 class VoiceController:
-    def __init__(self, navigator, speech_engine, logger) -> None:
+    def __init__(self, navigator, speech_engine, logger, permissions) -> None:
         self.navigator = navigator
         self.speech_engine = speech_engine
         self.logger = logger
+        self.permissions = permissions
         self._recognizer = sr.Recognizer()
         self._running = False
-        self._thread = None
+        self._thread: Optional[threading.Thread] = None
 
         self._command_map: Dict[str, Callable[[], str]] = {
             "start navigation": self.navigator.start_navigation,
@@ -24,8 +25,22 @@ class VoiceController:
             "help": self.navigator.help,
         }
 
+    def _resolve_command(self, spoken_text: str) -> Optional[str]:
+        command = spoken_text.lower().strip()
+        if command in self._command_map:
+            return command
+        for known in self._command_map:
+            if known in command:
+                return known
+        return None
+
     def _listen_loop(self) -> None:
         self.logger.info("Voice listener started")
+
+        if not self.permissions.microphone:
+            self.logger.warning("Microphone permission denied; voice control disabled")
+            self.speech_engine.speak("Microphone permission denied. Voice commands disabled.")
+            return
 
         try:
             with sr.Microphone() as source:
@@ -37,16 +52,16 @@ class VoiceController:
                         continue
 
                     try:
-                        command = self._recognizer.recognize_google(audio).lower().strip()
-                        self.logger.info("Heard command: %s", command)
-                        self.handle_command(command)
+                        spoken = self._recognizer.recognize_google(audio).lower().strip()
+                        self.logger.info("Heard command: %s", spoken)
+                        self.handle_command(spoken)
                     except sr.UnknownValueError:
                         continue
                     except sr.RequestError:
                         self.logger.warning("Speech recognition request failed; offline or API issue")
         except Exception:
             self.logger.exception("Microphone initialization failed")
-            self.speech_engine.speak("Microphone unavailable. Voice control is disabled.")
+            self.speech_engine.speak("Microphone not detected. Voice commands disabled.")
 
         self.logger.info("Voice listener stopped")
 
@@ -63,15 +78,15 @@ class VoiceController:
             self._thread.join(timeout=2)
 
     def handle_command(self, raw_command: str) -> str:
-        command = raw_command.lower().strip()
-        if command in self._command_map:
+        resolved = self._resolve_command(raw_command)
+        if resolved:
             try:
-                result = self._command_map[command]()
-                self.logger.info("Executed command '%s' => %s", command, result)
+                result = self._command_map[resolved]()
+                self.logger.info("Executed command '%s' => %s", resolved, result)
                 return result
             except Exception:
-                self.logger.exception("Command execution failed: %s", command)
-                message = "Sorry, command failed."
+                self.logger.exception("Command execution failed: %s", resolved)
+                message = "Sorry, command failed"
                 self.speech_engine.speak(message)
                 return message
 

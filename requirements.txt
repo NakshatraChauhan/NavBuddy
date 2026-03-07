@@ -4,3 +4,4 @@ ultralytics==8.3.2
 SpeechRecognition==3.10.4
 pyttsx3==2.90
 numpy==1.26.4
+gunicorn==22.0.0

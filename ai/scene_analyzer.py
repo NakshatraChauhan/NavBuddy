@@ -24,14 +24,11 @@ class SceneAnalyzer:
 
     def describe_scene(self, detections: List[Detection], frame_width: int) -> str:
         if not detections:
-            return "No major obstacles detected. Path mostly clear."
+            return "Path clear."
 
         counts = Counter([d.label for d in detections])
-        priority = ["person", "car", "bicycle", "motorcycle", "chair", "table", "door", "wall", "stairs"]
-        selected_label = next((label for label in priority if counts.get(label)), None)
-
-        if selected_label is None:
-            selected_label = detections[0].label
+        priority = ["person", "car", "bicycle", "motorcycle", "chair", "table"]
+        selected_label = next((label for label in priority if counts.get(label)), detections[0].label)
 
         selected = [d for d in detections if d.label == selected_label]
         closest = max(selected, key=lambda d: d.confidence)
@@ -39,19 +36,20 @@ class SceneAnalyzer:
 
         secondary = [label for label, count in counts.items() if label != selected_label and count > 0]
         if secondary:
-            second = secondary[0]
-            return f"{selected_label.capitalize()} {position}. {second.capitalize()} nearby. Proceed carefully."
+            return f"{selected_label.capitalize()} {position}. {secondary[0].capitalize()} nearby. Path clear."
 
-        return f"{selected_label.capitalize()} {position}. Proceed carefully."
+        return f"{selected_label.capitalize()} {position}."
 
     def navigation_alert(self, detections: List[Detection], frame_width: int) -> str:
         if not detections:
-            return "Path clear"
+            return "Clear path"
 
         high_priority = [d for d in detections if d.label in {"person", "car", "bicycle", "motorcycle"}]
         target = max(high_priority or detections, key=lambda d: d.confidence)
         position = self._position_for_detection(target, frame_width)
 
+        if target.label == "person" and position == "ahead":
+            return "Person approaching"
         if position == "ahead":
             return "Obstacle ahead"
         return f"Object on the {position}"

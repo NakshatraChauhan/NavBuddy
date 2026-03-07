@@ -20,10 +20,21 @@
     {% if ready %}
       <p class="ok"><strong>System Ready</strong></p>
       <p>Navigation active: <strong>{{ navigation_active }}</strong></p>
+      <p>Last inference time: <strong>{{ inference_ms }} ms</strong></p>
     {% else %}
       <p class="err"><strong>System Not Ready</strong></p>
       <p>Error: {{ error }}</p>
     {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Hardware Permissions</h2>
+    <ul>
+      <li>Camera: {{ permissions.get('camera', false) }}</li>
+      <li>Microphone: {{ permissions.get('microphone', false) }}</li>
+      <li>GPS: {{ permissions.get('gps', false) }}</li>
+      <li>Speaker: {{ permissions.get('speaker', false) }}</li>
+    </ul>
   </div>
 
   <div class="card">
@@ -36,7 +47,7 @@
   </div>
 
   <div class="card">
-    <h2>Manual Command Trigger (for testing)</h2>
+    <h2>Manual Command Trigger</h2>
     <div>
       <button onclick="sendCmd('start navigation')">Start Navigation</button>
       <button onclick="sendCmd('stop navigation')">Stop Navigation</button>

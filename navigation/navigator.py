@@ -13,11 +13,13 @@ class Navigator:
         "start navigation, stop navigation, describe scene, stop scan, status, help."
     )
 
-    def __init__(self, detector, scene_analyzer, speech_engine, logger) -> None:
+    def __init__(self, detector, scene_analyzer, speech_engine, logger, permissions, target_fps: float = 4.0) -> None:
         self.detector = detector
         self.scene_analyzer = scene_analyzer
         self.speech_engine = speech_engine
         self.logger = logger
+        self.permissions = permissions
+        self.target_fps = target_fps
 
         self._cap: Optional[cv2.VideoCapture] = None
         self._cap_lock = threading.Lock()
@@ -31,6 +33,10 @@ class Navigator:
         self._alert_cooldown_seconds = 2.5
 
     def _ensure_camera(self) -> bool:
+        if not self.permissions.camera:
+            self.logger.warning("Camera permission denied")
+            return False
+
         with self._cap_lock:
             if self._cap and self._cap.isOpened():
                 return True
@@ -63,14 +69,19 @@ class Navigator:
             return self._cap.read()
 
     def describe_scene_once(self) -> str:
+        if not self.permissions.camera:
+            message = "Camera permission denied"
+            self.speech_engine.speak(message)
+            return message
+
         if not self._ensure_camera():
-            message = "Camera unavailable. Please check camera permissions."
+            message = "Camera unavailable"
             self.speech_engine.speak(message)
             return message
 
         ok, frame = self._read_frame()
         if not ok or frame is None:
-            message = "Could not capture camera frame."
+            message = "Could not capture camera frame"
             self.logger.error(message)
             self.speech_engine.speak(message)
             return message
@@ -92,7 +103,10 @@ class Navigator:
 
     def _scan_loop(self) -> None:
         self.logger.info("Navigation scanning loop started")
+        interval = 1.0 / max(self.target_fps, 1.0)
+
         while not self._stop_event.is_set():
+            started = time.monotonic()
             ok, frame = self._read_frame()
             if not ok or frame is None:
                 self.logger.warning("Skipping frame during navigation scan")
@@ -102,18 +116,27 @@ class Navigator:
             detections = self.detector.detect(frame)
             alert = self.scene_analyzer.navigation_alert(detections, frame.shape[1])
             self._announce_with_cooldown(alert)
-            time.sleep(0.2)
+
+            elapsed = time.monotonic() - started
+            sleep_for = interval - elapsed
+            if sleep_for > 0:
+                time.sleep(sleep_for)
 
         self.logger.info("Navigation scanning loop stopped")
 
     def start_navigation(self) -> str:
+        if not self.permissions.camera:
+            message = "Camera permission denied"
+            self.speech_engine.speak(message)
+            return message
+
         if self._scan_active:
-            message = "Navigation is already active."
+            message = "Navigation is already active"
             self.speech_engine.speak(message)
             return message
 
         if not self._ensure_camera():
-            message = "Cannot start navigation. Camera unavailable."
+            message = "Cannot start navigation. Camera unavailable"
             self.speech_engine.speak(message)
             return message
 
@@ -128,7 +151,7 @@ class Navigator:
 
     def stop_navigation(self) -> str:
         if not self._scan_active:
-            message = "Navigation is already stopped."
+            message = "Navigation is already stopped"
             self.speech_engine.speak(message)
             return message
 
@@ -148,7 +171,7 @@ class Navigator:
 
     def status(self) -> str:
         if self._scan_active:
-            message = "Navigation active. Scene scanning enabled."
+            message = "Navigation active. Scanning environment."
         else:
             message = "Navigation inactive. Waiting for command."
         self.speech_engine.speak(message)
@@ -169,4 +192,11 @@ class Navigator:
                 "status",
                 "help",
             ],
+            "permissions": {
+                "camera": self.permissions.camera,
+                "microphone": self.permissions.microphone,
+                "gps": self.permissions.gps,
+                "speaker": self.permissions.speaker,
+            },
+            "inference_ms": round(self.detector.last_inference_ms, 2),
         }

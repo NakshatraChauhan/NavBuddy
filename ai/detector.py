@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import cv2
 import numpy as np
@@ -25,21 +26,23 @@ class ObstacleDetector:
         "motorcycle",
         "chair",
         "dining table",
-        "stairs",
-        "door",
-        "wall",
+        "truck",
+        "bus",
     }
 
     NORMALIZED_NAMES: Dict[str, str] = {
         "dining table": "table",
+        "truck": "car",
+        "bus": "car",
     }
 
     def __init__(self, model_path: str, logger) -> None:
         self.logger = logger
         self.model_path = model_path
         self.model = self._load_model()
+        self.last_inference_ms = 0.0
 
-    def _load_model(self):
+    def _load_model(self) -> YOLO:
         try:
             model = YOLO(self.model_path)
             self.logger.info("YOLO model loaded from %s", self.model_path)
@@ -52,32 +55,38 @@ class ObstacleDetector:
         if frame is None or frame.size == 0:
             return []
 
-        resized = cv2.resize(frame, (640, 384), interpolation=cv2.INTER_AREA)
-        results = self.model.predict(
-            source=resized,
-            conf=conf,
-            verbose=False,
-            imgsz=640,
-            device="cpu",
-        )
+        start = time.monotonic()
+        try:
+            resized = cv2.resize(frame, (640, 384), interpolation=cv2.INTER_AREA)
+            results = self.model.predict(
+                source=resized,
+                conf=conf,
+                verbose=False,
+                imgsz=640,
+                device="cpu",
+            )
 
-        detections: List[Detection] = []
-        for result in results:
-            names = result.names
-            for box in result.boxes:
-                class_id = int(box.cls.item())
-                label = names[class_id]
-                if label not in self.INTEREST_CLASSES:
-                    continue
-                label = self.NORMALIZED_NAMES.get(label, label)
-                confidence = float(box.conf.item())
-                x1, y1, x2, y2 = [float(v) for v in box.xyxy[0].tolist()]
-                detections.append(
-                    Detection(
-                        label=label,
-                        confidence=confidence,
-                        box=[x1, y1, x2, y2],
+            detections: List[Detection] = []
+            for result in results:
+                names = result.names
+                for box in result.boxes:
+                    class_id = int(box.cls.item())
+                    label = names[class_id]
+                    if label not in self.INTEREST_CLASSES:
+                        continue
+                    label = self.NORMALIZED_NAMES.get(label, label)
+                    confidence = float(box.conf.item())
+                    x1, y1, x2, y2 = [float(v) for v in box.xyxy[0].tolist()]
+                    detections.append(
+                        Detection(
+                            label=label,
+                            confidence=confidence,
+                            box=[x1, y1, x2, y2],
+                        )
                     )
-                )
-
-        return detections
+            return detections
+        except Exception:
+            self.logger.exception("Detection failed")
+            return []
+        finally:
+            self.last_inference_ms = (time.monotonic() - start) * 1000.0

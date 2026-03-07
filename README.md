@@ -2,27 +2,25 @@
 
 A simple, stable, voice-first assistive navigation system for visually impaired users, built with **Python + Flask**.
 
-The application provides:
-- Scene description
-- Obstacle-aware navigation alerts
-- Voice command control
-- Help and status responses
+## Initial Analysis (What was broken and fixed)
+
+### What was broken
+- Missing explicit hardware permission handling for camera, microphone, speaker, and GPS.
+- Voice commands were vulnerable to minor phrase variations and microphone failures.
+- Navigation needed stronger real-world safety behavior (short alerts + anti-spam cooldown + predictable status).
+- Startup lacked environment-driven configuration and production-focused deployment guidance.
+- No automated tests for critical system behaviors.
+
+### What was fixed
+- Added a mandatory permission flow before hardware usage.
+- Hardened voice command routing and microphone failure handling.
+- Improved navigation safety loop with cooldown and concise alerts.
+- Added environment-configurable startup and Gunicorn deployment support.
+- Added `tests/test_system.py` for permissions, model load, voice commands, and navigation pipeline checks.
 
 ---
 
-## 1) Project Overview
-
-Blind Navigation Assistant uses a camera feed, YOLOv8 Nano object detection, and text-to-speech to help users understand their environment.
-
-The design is intentionally minimal:
-- CPU-friendly processing
-- Clear short voice alerts
-- Cooldown to avoid repeated alert spam
-- Commands accessible by voice and web UI fallback
-
----
-
-## 2) Architecture
+## Architecture
 
 ```text
 blindnav/
@@ -35,30 +33,73 @@ blindnav/
     voice_controller.py
   navigation/
     navigator.py
+  permissions/
+    permission_manager.py
   utils/
     logger.py
   templates/
     index.html
   models/
     yolov8n.pt
+  tests/
+    test_system.py
   requirements.txt
   README.md
 ```
 
-### Module Responsibilities
+---
 
-- `app.py`: Flask app, startup wiring, API routes.
-- `ai/detector.py`: YOLOv8n loading and detection filtering.
-- `ai/scene_analyzer.py`: Converts detections into short scene descriptions and navigation alerts.
-- `voice/speech_engine.py`: TTS engine wrapper (`pyttsx3`).
-- `voice/voice_controller.py`: Continuous command listener (`SpeechRecognition`) and command routing.
-- `navigation/navigator.py`: Camera lifecycle, navigation loop, cooldown logic, status/help handling.
-- `utils/logger.py`: File + console logging setup.
-- `templates/index.html`: Accessibility-friendly status and command listing UI.
+## Core Features
+
+1. Scene Description (`describe scene`)
+2. Obstacle Detection
+3. Navigation Mode (`start navigation` / `stop navigation`)
+4. Voice Command Control
+5. Help Command (`help`)
+6. Status Command (`status`)
+
+All actions return spoken feedback when speaker permission is granted.
 
 ---
 
-## 3) Installation
+## Voice Commands
+
+- `start navigation`
+- `stop navigation`
+- `describe scene`
+- `stop scan`
+- `status`
+- `help`
+
+### Help response
+The system says exactly:
+
+> "Available commands are: start navigation, stop navigation, describe scene, stop scan, status, help."
+
+Commands are also listed in the web UI.
+
+---
+
+## Mandatory Permission System
+
+At startup, the app asks permissions for:
+- Camera
+- Microphone
+- GPS location
+- Audio speaker
+
+If denied, dependent features are safely disabled.
+
+Environment override options:
+- `BLINDNAV_AUTO_APPROVE=true`
+- `BLINDNAV_PERMISSION_CAMERA=yes|no`
+- `BLINDNAV_PERMISSION_MICROPHONE=yes|no`
+- `BLINDNAV_PERMISSION_GPS=yes|no`
+- `BLINDNAV_PERMISSION_SPEAKER=yes|no`
+
+---
+
+## Installation
 
 ### Create environment
 ```bash
@@ -66,14 +107,14 @@ python -m venv venv
 ```
 
 ### Activate environment
+Linux / Mac:
+```bash
+source venv/bin/activate
+```
+
 Windows:
 ```bash
 venv\Scripts\activate
-```
-
-Linux/Mac:
-```bash
-source venv/bin/activate
 ```
 
 ### Install dependencies
@@ -86,91 +127,87 @@ pip install -r requirements.txt
 pip install ultralytics
 ```
 
-### Download model
-```bash
-yolo export model=yolov8n.pt format=torchscript
-```
-
-Place model in:
+### Model placement
+Put your model at:
 ```text
 models/yolov8n.pt
 ```
 
 ---
 
-## 4) Run Application
+## Running Locally
 
 ```bash
 python app.py
 ```
 
-Open interface:
+Open:
 ```text
 http://localhost:5000
 ```
 
 ---
 
-## 5) Voice Commands
+## Production Deployment
 
-Supported commands:
-- `start navigation`
-- `stop navigation`
-- `describe scene`
-- `stop scan`
-- `status`
-- `help`
+```bash
+gunicorn -w 2 -b 0.0.0.0:5000 app:app
+```
 
-### Help response
-When user says `help`, system says:
-
-> "Available commands are: start navigation, stop navigation, describe scene, stop scan, status, help."
-
-The same commands are shown on the web interface.
+Optional environment variables:
+- `BLINDNAV_MODEL_PATH=models/yolov8n.pt`
+- `BLINDNAV_TARGET_FPS=4`
+- `BLINDNAV_HOST=0.0.0.0`
+- `BLINDNAV_PORT=5000`
+- `BLINDNAV_LOG_LEVEL=INFO`
+- `BLINDNAV_LOG_DIR=logs`
 
 ---
 
-## 6) Runtime Workflow
+## Hardware Requirements
 
-1. App starts and loads YOLO model.
-2. Speech engine initializes.
-3. Voice listener starts in background.
-4. User gives voice commands.
-5. Navigator executes action with spoken feedback.
-
-Examples:
-- `describe scene` → capture frame, run detection, speak short summary.
-- `start navigation` → continuous scan + cooldown alerts (e.g., “Obstacle ahead”, “Path clear”).
-- `status` → spoken current system state.
+- Camera (USB/internal)
+- Microphone
+- Speaker/audio output
+- CPU-capable machine (no GPU required)
 
 ---
 
-## 7) Troubleshooting
+## Troubleshooting
 
-### Camera failure
-- Ensure no other app is locking the camera.
-- Confirm system camera permissions for Python.
-- Check logs at `logs/blindnav.log`.
+### Camera not available
+- Check camera permissions.
+- Ensure no other app is locking the device.
+- Review logs in `logs/blindnav.log`.
 
-### Microphone failure
-- Confirm microphone permissions.
-- Ensure input device is connected and default.
-- If unavailable, app still supports manual web command triggers.
+### Microphone not available
+- Check microphone permissions and selected input device.
+- Voice control is disabled safely; web command buttons remain available.
 
-### Model loading error
-- Confirm `models/yolov8n.pt` exists.
-- Verify version compatibility (`ultralytics` from requirements).
-- Review `logs/blindnav.log` for stack trace.
+### Speaker denied/unavailable
+- Spoken feedback is muted intentionally.
+- Use the web UI output and logs.
 
-### Voice recognition request errors
+### Model loading failure
+- Confirm `models/yolov8n.pt` exists and is compatible.
+- Check stack traces in `logs/blindnav.log`.
+
+### SpeechRecognition request issues
 - `recognize_google` requires network access.
-- If offline, use the web command buttons as fallback.
+- Use web UI commands if offline.
 
 ---
 
-## 8) Performance Notes
+## Testing
 
-- Runs on CPU.
-- Uses resized frames for efficient YOLO inference.
-- Navigation scan loop is throttled for practical CPU usage.
-- Alert cooldown prevents repeated speech spam.
+Run automated checks:
+
+```bash
+python -m unittest tests/test_system.py -v
+```
+
+Tests include:
+- Permission manager behavior
+- YOLO model loading path (mocked)
+- Voice command handling
+- Navigation scene/alert pipeline behavior
