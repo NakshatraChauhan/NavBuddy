@@ -3,73 +3,252 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blind Navigation Assistant</title>
+  <title>Vision Companion</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-    .ok { color: #0a7a2f; }
-    .err { color: #a40000; }
-    button { padding: 0.6rem 0.8rem; margin: 0.3rem 0.2rem; }
-    #output { margin-top: 1rem; min-height: 2rem; }
+    :root {
+      --bg: #05070f;
+      --card: #0c111f;
+      --panel: #111728;
+      --text: #e9f1ff;
+      --muted: #97a4bd;
+      --accent: #00e2a8;
+      --accent-soft: rgba(0, 226, 168, 0.18);
+      --danger: #ff6c7a;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 45% 15%, #0b2230 0%, #05070f 55%);
+      display: flex;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .app {
+      width: min(430px, 100%);
+    }
+
+    h1 {
+      margin: 2px 0 2px;
+      text-align: center;
+      font-size: 2.95rem;
+      line-height: 1;
+      letter-spacing: 0.2px;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      text-align: center;
+      color: #9ab2d6;
+      font-size: 1.2rem;
+    }
+
+    .orb-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 0 0 20px;
+    }
+
+    .orb {
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      border: 4px solid var(--accent);
+      background: radial-gradient(circle at 35% 30%, rgba(0,226,168,.12), rgba(0,226,168,.02));
+      box-shadow:
+        0 0 0 1px rgba(0, 226, 168, 0.32) inset,
+        0 0 46px rgba(0, 226, 168, 0.19);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .orb .icon { font-size: 66px; line-height: 1; color: var(--accent); }
+    .orb .state {
+      font-size: 1.7rem;
+      letter-spacing: 1.8px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .tile {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      min-height: 92px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .tile .label {
+      font-size: 0.74rem;
+      color: #8d9bb5;
+      letter-spacing: 1.7px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .tile .value { font-size: 1.55rem; font-weight: 700; }
+    .tile .sub { font-size: 1rem; color: var(--muted); }
+    .success { color: var(--accent); }
+    .danger { color: var(--danger); }
+
+    .commands, .actions {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(15, 20, 35, 0.78);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      color: #c5d6f5;
+      font-size: 0.9rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .commands .pill-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      background: rgba(0,226,168,0.08);
+      border: 1px solid rgba(0,226,168,0.3);
+      color: #b3ffe9;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid rgba(0,226,168,.35);
+      background: rgba(0,226,168,.10);
+      color: #ccfff0;
+      padding: 10px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    button:hover { background: rgba(0,226,168,.18); }
+
+    #output {
+      margin-top: 10px;
+      min-height: 22px;
+      color: #b9c8e3;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
-  <h1>Blind Navigation Assistant</h1>
+  <main class="app" role="main" aria-label="Vision Companion Assistant Dashboard">
+    <h1>Vision Companion</h1>
+    <p class="subtitle">Audio-first blind navigation assistant</p>
 
-  <div class="card">
-    {% if ready %}
-      <p class="ok"><strong>System Ready</strong></p>
-      <p>Navigation active: <strong>{{ navigation_active }}</strong></p>
-      <p>Last inference time: <strong>{{ inference_ms }} ms</strong></p>
-    {% else %}
-      <p class="err"><strong>System Not Ready</strong></p>
-      <p>Error: {{ error }}</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h2>Hardware Permissions</h2>
-    <ul>
-      <li>Camera: {{ permissions.get('camera', false) }}</li>
-      <li>Microphone: {{ permissions.get('microphone', false) }}</li>
-      <li>GPS: {{ permissions.get('gps', false) }}</li>
-      <li>Speaker: {{ permissions.get('speaker', false) }}</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>Voice Commands</h2>
-    <ul>
-      {% for c in commands %}
-        <li>{{ c }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>Manual Command Trigger</h2>
-    <div>
-      <button onclick="sendCmd('start navigation')">Start Navigation</button>
-      <button onclick="sendCmd('stop navigation')">Stop Navigation</button>
-      <button onclick="sendCmd('describe scene')">Describe Scene</button>
-      <button onclick="sendCmd('stop scan')">Stop Scan</button>
-      <button onclick="sendCmd('status')">Status</button>
-      <button onclick="sendCmd('help')">Help</button>
+    <div class="orb-wrap">
+      <div class="orb" aria-live="polite">
+        <div class="icon">🎙️</div>
+        <div class="state">{{ 'ACTIVE' if navigation_active else 'STOPPED' }}</div>
+      </div>
     </div>
-    <div id="output"></div>
-  </div>
+
+    <section class="grid">
+      <article class="tile">
+        <div class="label">GPS</div>
+        <div class="value {{ 'success' if permissions.get('gps', false) else 'danger' }}">
+          {{ 'ON' if permissions.get('gps', false) else 'Locked' }}
+        </div>
+      </article>
+      <article class="tile">
+        <div class="label">Vision</div>
+        <div class="value {{ 'success' if permissions.get('camera', false) else 'danger' }}">
+          {{ 'ON' if permissions.get('camera', false) else 'OFF' }}
+        </div>
+        <div class="sub">{{ inference_ms }} ms</div>
+      </article>
+      <article class="tile">
+        <div class="label">Microphone</div>
+        <div class="value {{ 'success' if permissions.get('microphone', false) else 'danger' }}">
+          {{ 'ON' if permissions.get('microphone', false) else 'OFF' }}
+        </div>
+      </article>
+      <article class="tile">
+        <div class="label">Speaker</div>
+        <div class="value {{ 'success' if permissions.get('speaker', false) else 'danger' }}">
+          {{ 'ON' if permissions.get('speaker', false) else 'OFF' }}
+        </div>
+      </article>
+    </section>
+
+    <section class="commands">
+      <p class="section-title">Voice Commands</p>
+      <div class="pill-wrap">
+        {% for c in commands %}
+          <span class="pill">{{ c }}</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="actions">
+      <p class="section-title">Manual Command Trigger</p>
+      <div class="btn-grid">
+        <button onclick="sendCmd('start navigation')">Start Navigation</button>
+        <button onclick="sendCmd('stop navigation')">Stop Navigation</button>
+        <button onclick="sendCmd('describe scene')">Describe Scene</button>
+        <button onclick="sendCmd('stop scan')">Stop Scan</button>
+        <button onclick="sendCmd('status')">Status</button>
+        <button onclick="sendCmd('help')">Help</button>
+      </div>
+      <div id="output" aria-live="polite"></div>
+    </section>
+  </main>
 
   <script>
     async function sendCmd(command) {
       const output = document.getElementById('output');
       output.textContent = 'Running command: ' + command;
-      const res = await fetch('/api/command', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({command})
-      });
-      const data = await res.json();
-      output.textContent = data.message || JSON.stringify(data);
+      try {
+        const res = await fetch('/api/command', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({command})
+        });
+        const data = await res.json();
+        output.textContent = data.message || JSON.stringify(data);
+      } catch (error) {
+        output.textContent = 'Command failed: ' + error.message;
+      }
     }
   </script>
 </body>
