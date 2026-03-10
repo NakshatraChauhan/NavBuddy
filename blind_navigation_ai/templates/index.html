@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision Companion</title>
+  <style>
+    :root {
+      --bg: #030811;
+      --text: #f4f7ff;
+      --muted: #96a3ba;
+      --accent: #00d7a7;
+      --border: rgba(255,255,255,.09);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#081725 0%,var(--bg) 55%);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;display:grid;place-items:start center;padding:12px}
+    .app{width:min(390px,100%);border-radius:20px;overflow:hidden;border:1px solid rgba(0,215,167,.18);background:linear-gradient(180deg,rgba(8,17,30,.95),rgba(2,7,14,.98));box-shadow:0 24px 80px rgba(0,0,0,.5)}
+    .header{text-align:center;padding:20px 14px 10px}
+    h1{margin:0;font-size:3rem;font-weight:800}
+    .sub{margin-top:4px;color:var(--muted)}
+    .ring-wrap{display:grid;place-items:center;padding:8px 0 16px}
+    .ring{width:250px;height:250px;border-radius:50%;border:4px solid var(--accent);display:grid;place-items:center;box-shadow:0 0 35px rgba(0,215,167,.2),inset 0 0 30px rgba(0,215,167,.1)}
+    .ring.active{border-color:#00f2bf;box-shadow:0 0 55px rgba(0,242,191,.3),inset 0 0 30px rgba(0,242,191,.15)}
+    .mic{width:56px;height:56px;color:var(--accent);margin:auto auto 10px;display:block}
+    .mode{text-align:center;letter-spacing:2.4px;font-weight:700;color:var(--accent)}
+    .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;border-top:1px solid var(--border)}
+    .card{padding:10px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid var(--border)}
+    .title{font-size:.74rem;letter-spacing:1.2px;text-transform:uppercase;color:#8d99b3}
+    .value{font-size:1.22rem;font-weight:700;margin-top:6px}
+    .ok{color:var(--accent)}
+    .panel{padding:0 12px 14px}
+    #guidanceText{color:#d9e1f0}
+    #objectsList{margin:8px 0 0;padding-left:18px;color:#b3bed1;font-size:.88rem}
+    #metricsText{margin-top:8px;color:#86f5d2;font-size:.82rem}
+    #log{margin-top:8px;max-height:120px;overflow:auto;color:#90a1be;font-size:.82rem;border-top:1px solid var(--border);padding-top:8px}
+    video,canvas{display:none}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="header">
+      <h1>Vision Companion</h1>
+      <div class="sub">Audio-first blind navigation assistant</div>
+    </section>
+
+    <section class="ring-wrap" aria-live="polite">
+      <div id="statusRing" class="ring">
+        <div>
+          <svg class="mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z"/>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+            <path d="M12 18v5"/><path d="M8 23h8"/><path d="M2 2l20 20"/>
+          </svg>
+          <div id="statusText" class="mode">STOPPED</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <article class="card"><div class="title">GPS</div><div id="gpsState" class="value">Pending</div></article>
+      <article class="card"><div class="title">Vision</div><div id="visionState" class="value">Off</div></article>
+      <article class="card"><div class="title">Microphone</div><div id="micState" class="value">Pending</div></article>
+      <article class="card"><div class="title">Audio</div><div id="audioState" class="value">Pending</div></article>
+    </section>
+
+    <section class="panel">
+      <p id="guidanceText">Requesting permissions...</p>
+      <ul id="objectsList"></ul>
+      <div id="metricsText"></div>
+      <div id="log"></div>
+    </section>
+
+    <video id="camera" autoplay playsinline muted></video>
+    <canvas id="snapshot" width="640" height="480"></canvas>
+  </main>
+
+  <script type="module" src="{{ url_for('static', filename='navigation.js') }}"></script>
+</body>
+</html>
