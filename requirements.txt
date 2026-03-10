@@ -1,0 +1,7 @@
+flask>=3.0.0
+requests>=2.31.0
+pillow>=10.0.0
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
+# Optional for YOLO path in object_detection.py
+ultralytics>=8.0.0
